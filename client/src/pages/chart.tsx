@@ -46,6 +46,7 @@ export default function ChartPage() {
   const [priceChange, setPriceChange] = useState<number>(0);
   const [priceChangePercent, setPriceChangePercent] = useState<number>(0);
   const [showWelcomeAlert, setShowWelcomeAlert] = useState(true);
+  const [showBollingerIndicator, setShowBollingerIndicator] = useState(true);
   const { toast } = useToast();
 
   // CSV file upload handler
@@ -267,7 +268,7 @@ export default function ChartPage() {
               <Button 
                 onClick={() => document.getElementById('csv-upload')?.click()}
                 variant="outline"
-                className="hover-primary-light"
+                className="hover-primary-light border-2 font-medium px-4 py-2 transition-all duration-200 hover:border-primary hover:shadow-sm"
                 data-testid="button-upload-csv"
               >
                 <Upload className="h-4 w-4 mr-2" />
@@ -276,21 +277,44 @@ export default function ChartPage() {
               <Button 
                 onClick={downloadIndicatorData}
                 variant="outline"
-                className="hover-green-light hover:text-green-700 hover:border-green-200"
+                className="hover-green-light hover:text-green-700 hover:border-green-200 border-2 font-medium px-4 py-2 transition-all duration-200 hover:shadow-sm"
                 data-testid="button-download-data"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Download
               </Button>
+              {!showBollingerIndicator ? (
+                <Button 
+                  onClick={() => {
+                    setShowBollingerIndicator(true);
+                    toast({
+                      title: "Indicator Added! 📊",
+                      description: "Bollinger Bands indicator has been added to the chart.",
+                    });
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white shadow-md font-medium px-4 py-2 transition-all duration-200 hover:shadow-lg hover:scale-105"
+                  data-testid="button-add-indicator"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Bollinger Bands
+                </Button>
+              ) : (
+                <Button 
+                  onClick={() => setShowSettings(true)}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md font-medium px-4 py-2 transition-all duration-200 hover:shadow-lg hover:scale-105"
+                  data-testid="button-configure-indicator"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Configure
+                </Button>
+              )}
               <Button 
+                variant="ghost" 
+                size="sm" 
                 onClick={() => setShowSettings(true)}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
-                data-testid="button-add-indicator"
+                className="hover-primary-light transition-all duration-200"
+                data-testid="button-settings"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Indicator
-              </Button>
-              <Button variant="ghost" size="sm" data-testid="button-settings">
                 <Settings className="h-4 w-4" />
               </Button>
             </div>
@@ -349,39 +373,73 @@ export default function ChartPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <Badge variant="secondary" className="px-3 py-1 bg-primary/10 border-primary/20">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                <span className="text-xs font-medium" data-testid="text-indicator-name">Bollinger Bands Active</span>
-              </Badge>
-              <div className="flex items-center space-x-1">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-8 px-2 hover-primary-light"
-                  onClick={() => setShowSettings(true)}
-                  data-testid="button-open-settings"
-                >
-                  <Settings className="h-3 w-3" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-8 px-2 text-muted-foreground hover:text-destructive hover-destructive-light"
-                  data-testid="button-remove-indicator"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
+              {showBollingerIndicator && (
+                <Badge variant="secondary" className="px-3 py-1 bg-primary/10 border-primary/20 text-primary">
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  <span className="text-xs font-medium text-primary" data-testid="text-indicator-name">Bollinger Bands Active</span>
+                </Badge>
+              )}
+              {showBollingerIndicator && (
+                <div className="flex items-center space-x-1">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 px-2 hover-primary-light transition-all duration-200"
+                    onClick={() => setShowSettings(true)}
+                    data-testid="button-open-settings"
+                  >
+                    <Settings className="h-3 w-3" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 px-2 text-muted-foreground hover:text-destructive hover-destructive-light transition-all duration-200"
+                    onClick={() => {
+                      setShowBollingerIndicator(false);
+                      toast({
+                        title: "Indicator Removed ❌",
+                        description: "Bollinger Bands indicator has been removed from the chart.",
+                      });
+                    }}
+                    data-testid="button-remove-indicator"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
           
           {/* Enhanced Chart Component */}
           <div className="relative h-[500px] bg-background border border-border/30 rounded-lg overflow-hidden shadow-inner" data-testid="container-chart">
-            <Chart 
-              data={chartData}
-              bollingerData={bollingerData}
-              settings={bollingerSettings}
-            />
+            {showBollingerIndicator ? (
+              <Chart 
+                data={chartData}
+                bollingerData={bollingerData}
+                settings={bollingerSettings}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full bg-gradient-to-br from-muted/20 to-muted/5">
+                <div className="text-center p-8">
+                  <TrendingUp className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">No Indicators Active</h3>
+                  <p className="text-muted-foreground mb-4">Add Bollinger Bands or other technical indicators to start analyzing.</p>
+                  <Button 
+                    onClick={() => {
+                      setShowBollingerIndicator(true);
+                      toast({
+                        title: "Indicator Added! 📊",
+                        description: "Bollinger Bands indicator has been added to the chart.",
+                      });
+                    }}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Bollinger Bands
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </Card>
 
