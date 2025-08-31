@@ -19,53 +19,61 @@ export default function Chart({ data, bollingerData, settings }: ChartProps) {
     registerIndicator({
       name: 'BollingerBands',
       shortName: 'BOLL',
-      series: 'normal',
       precision: 2,
       calcParams: [20, 2],
-      shouldOhlc: false,
-      shouldFormatBigNumber: false,
-      visible: true,
-      zLevel: 0,
       styles: {
         lines: [
           {
             key: 'up',
             title: 'Upper',
-            type: 'line',
-            baseValue: 0,
-            color: '#2962ff',
-            size: 1,
-            style: 1,
-            smooth: false,
-            show: true,
+            color: settings.upperColor,
+            size: settings.upperWidth,
+            style: settings.upperStyle === 'dashed' ? 'dashed' : 'solid',
+            show: settings.upperVisible,
           },
           {
             key: 'mid',
             title: 'Basis',
-            type: 'line',
-            baseValue: 0,
-            color: '#f7c52d',
-            size: 1,
-            style: 1,
-            smooth: false,
-            show: true,
+            color: settings.basicColor,
+            size: settings.basicWidth,
+            style: settings.basicStyle === 'dashed' ? 'dashed' : 'solid',
+            show: settings.basicVisible,
           },
           {
             key: 'dn',
             title: 'Lower',
-            type: 'line',
-            baseValue: 0,
-            color: '#c84bc7',
-            size: 1,
-            style: 1,
-            smooth: false,
-            show: true,
+            color: settings.lowerColor,
+            size: settings.lowerWidth,
+            style: settings.lowerStyle === 'dashed' ? 'dashed' : 'solid',
+            show: settings.lowerVisible,
           },
         ],
+        areas: settings.fillVisible ? [
+          {
+            key: 'upDn',
+            color: `${settings.upperColor}${Math.round((settings.fillOpacity / 100) * 255).toString(16).padStart(2, '0')}`,
+          },
+        ] : [],
       },
       calc: (dataList: any[], { params }: any) => {
         const [length, multiplier] = params;
+        const offset = settings.offset || 0;
+        const sourceKey = settings.source || 'close';
         const result: any[] = [];
+        
+        // Get source values based on selected source
+        const getSourceValue = (candle: any) => {
+          switch (sourceKey) {
+            case 'open': return candle.open;
+            case 'high': return candle.high;
+            case 'low': return candle.low;
+            case 'close': return candle.close;
+            case 'hl2': return (candle.high + candle.low) / 2;
+            case 'hlc3': return (candle.high + candle.low + candle.close) / 3;
+            case 'ohlc4': return (candle.open + candle.high + candle.low + candle.close) / 4;
+            default: return candle.close;
+          }
+        };
         
         for (let i = 0; i < dataList.length; i++) {
           if (i < length - 1) {
@@ -73,19 +81,19 @@ export default function Chart({ data, bollingerData, settings }: ChartProps) {
             continue;
           }
           
-          // Calculate SMA (basis)
+          // Calculate SMA (basis) using selected source
           let sum = 0;
           for (let j = i - length + 1; j <= i; j++) {
-            sum += dataList[j].close;
+            sum += getSourceValue(dataList[j]);
           }
           const basis = sum / length;
           
-          // Calculate standard deviation
+          // Calculate standard deviation (population)
           let variance = 0;
           for (let j = i - length + 1; j <= i; j++) {
-            variance += Math.pow(dataList[j].close - basis, 2);
+            variance += Math.pow(getSourceValue(dataList[j]) - basis, 2);
           }
-          const stdDev = Math.sqrt(variance / length); // Population standard deviation
+          const stdDev = Math.sqrt(variance / length);
           
           // Calculate bands
           const upper = basis + (multiplier * stdDev);
@@ -98,31 +106,45 @@ export default function Chart({ data, bollingerData, settings }: ChartProps) {
           });
         }
         
+        // Apply offset if specified
+        if (offset !== 0) {
+          const offsetResult = new Array(result.length);
+          for (let i = 0; i < result.length; i++) {
+            const sourceIndex = i - offset;
+            if (sourceIndex >= 0 && sourceIndex < result.length) {
+              offsetResult[i] = result[sourceIndex];
+            } else {
+              offsetResult[i] = { up: null, mid: null, dn: null };
+            }
+          }
+          return offsetResult;
+        }
+        
         return result;
       },
       regenerateFigures: () => [],
       createTooltipDataSource: ({ indicator }: any) => {
-        const tooltipData: any[] = [];
-        
-        tooltipData.push({
-          title: 'Upper: ',
-          value: indicator.up,
-          color: '#2962ff',
-        });
-        
-        tooltipData.push({
-          title: 'Basis: ',
-          value: indicator.mid,
-          color: '#f7c52d',
-        });
-        
-        tooltipData.push({
-          title: 'Lower: ',
-          value: indicator.dn,
-          color: '#c84bc7',
-        });
-        
-        return tooltipData;
+        return {
+          name: 'BOLL',
+          calcParamsText: `(${settings.length}, ${settings.stddev})`,
+          legends: [
+            {
+              title: 'Upper: ',
+              value: indicator.up ? indicator.up.toFixed(2) : '--',
+              color: settings.upperColor,
+            },
+            {
+              title: 'Basis: ',
+              value: indicator.mid ? indicator.mid.toFixed(2) : '--',
+              color: settings.basicColor,
+            },
+            {
+              title: 'Lower: ',
+              value: indicator.dn ? indicator.dn.toFixed(2) : '--',
+              color: settings.lowerColor,
+            },
+          ],
+        };
       },
     });
 
@@ -161,8 +183,134 @@ export default function Chart({ data, bollingerData, settings }: ChartProps) {
 
   useEffect(() => {
     if (chartInstance.current) {
-      // Update indicator parameters when settings change
-      chartInstance.current.overrideIndicator({
+      // Remove existing indicator
+      chartInstance.current.removeIndicator('BollingerBands');
+      
+      // Re-register with updated settings
+      registerIndicator({
+        name: 'BollingerBands',
+        shortName: 'BOLL',
+        precision: 2,
+        calcParams: [settings.length, settings.stddev],
+        styles: {
+          lines: [
+            {
+              key: 'up',
+              title: 'Upper',
+              color: settings.upperColor,
+              size: settings.upperWidth,
+              style: settings.upperStyle === 'dashed' ? 'dashed' : 'solid',
+              show: settings.upperVisible,
+            },
+            {
+              key: 'mid',
+              title: 'Basis',
+              color: settings.basicColor,
+              size: settings.basicWidth,
+              style: settings.basicStyle === 'dashed' ? 'dashed' : 'solid',
+              show: settings.basicVisible,
+            },
+            {
+              key: 'dn',
+              title: 'Lower',
+              color: settings.lowerColor,
+              size: settings.lowerWidth,
+              style: settings.lowerStyle === 'dashed' ? 'dashed' : 'solid',
+              show: settings.lowerVisible,
+            },
+          ],
+          areas: settings.fillVisible ? [
+            {
+              key: 'upDn',
+              color: `${settings.upperColor}${Math.round((settings.fillOpacity / 100) * 255).toString(16).padStart(2, '0')}`,
+            },
+          ] : [],
+        },
+        calc: (dataList: any[], { params }: any) => {
+          const [length, multiplier] = params;
+          const offset = settings.offset || 0;
+          const sourceKey = settings.source || 'close';
+          const result: any[] = [];
+          
+          const getSourceValue = (candle: any) => {
+            switch (sourceKey) {
+              case 'open': return candle.open;
+              case 'high': return candle.high;
+              case 'low': return candle.low;
+              case 'close': return candle.close;
+              case 'hl2': return (candle.high + candle.low) / 2;
+              case 'hlc3': return (candle.high + candle.low + candle.close) / 3;
+              case 'ohlc4': return (candle.open + candle.high + candle.low + candle.close) / 4;
+              default: return candle.close;
+            }
+          };
+          
+          for (let i = 0; i < dataList.length; i++) {
+            if (i < length - 1) {
+              result.push({ up: null, mid: null, dn: null });
+              continue;
+            }
+            
+            let sum = 0;
+            for (let j = i - length + 1; j <= i; j++) {
+              sum += getSourceValue(dataList[j]);
+            }
+            const basis = sum / length;
+            
+            let variance = 0;
+            for (let j = i - length + 1; j <= i; j++) {
+              variance += Math.pow(getSourceValue(dataList[j]) - basis, 2);
+            }
+            const stdDev = Math.sqrt(variance / length);
+            
+            const upper = basis + (multiplier * stdDev);
+            const lower = basis - (multiplier * stdDev);
+            
+            result.push({ up: upper, mid: basis, dn: lower });
+          }
+          
+          if (offset !== 0) {
+            const offsetResult = new Array(result.length);
+            for (let i = 0; i < result.length; i++) {
+              const sourceIndex = i - offset;
+              if (sourceIndex >= 0 && sourceIndex < result.length) {
+                offsetResult[i] = result[sourceIndex];
+              } else {
+                offsetResult[i] = { up: null, mid: null, dn: null };
+              }
+            }
+            return offsetResult;
+          }
+          
+          return result;
+        },
+        createTooltipDataSource: ({ indicator }: any) => {
+          return {
+            name: 'BOLL',
+            calcParamsText: `(${settings.length}, ${settings.stddev})`,
+            legends: [
+              {
+                title: 'Upper: ',
+                value: indicator.up ? indicator.up.toFixed(2) : '--',
+                color: settings.upperColor,
+              },
+              {
+                title: 'Basis: ',
+                value: indicator.mid ? indicator.mid.toFixed(2) : '--',
+                color: settings.basicColor,
+              },
+              {
+                title: 'Lower: ',
+                value: indicator.dn ? indicator.dn.toFixed(2) : '--',
+                color: settings.lowerColor,
+              },
+            ],
+          };
+        },
+      });
+      
+      // Add the indicator back
+      chartInstance.current.createIndicator({
         name: 'BollingerBands',
         calcParams: [settings.length, settings.stddev],
       });

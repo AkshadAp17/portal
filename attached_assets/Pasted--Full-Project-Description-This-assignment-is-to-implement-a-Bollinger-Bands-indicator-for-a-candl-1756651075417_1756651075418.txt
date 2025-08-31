@@ -1,0 +1,117 @@
+📌 Full Project Description
+
+This assignment is to implement a Bollinger Bands indicator for a candlestick charting module using KLineCharts. The project must be built with React, Next.js, TypeScript, and TailwindCSS only, and no other charting library or paid components are allowed. You may use basic math/helper utilities or write your own small utilities where needed.
+
+The indicator should replicate the behavior and simplicity of TradingView’s Bollinger Bands, with configurable Inputs and Style options:
+
+Inputs (with defaults):
+
+Length: 20
+
+MA Type: SMA (only SMA required)
+
+Source: Close price
+
+StdDev multiplier: 2
+
+Offset: 0 (shift bands forward/backward by N bars)
+
+Style (customizable):
+
+Middle Band: toggle visibility, color, line width, line style (solid/dashed)
+
+Upper Band: toggle visibility, color, line width, line style
+
+Lower Band: toggle visibility, color, line width, line style
+
+Background Fill (area between Upper & Lower bands): toggle visibility and opacity
+
+The chart should be rendered with demo OHLCV data provided in JSON/CSV format (at least 200 candles of any timeframe like 1m, 5m, or 1D). The chart must display both candlesticks and the Bollinger Bands overlay.
+
+Bollinger Band Calculations (expected formulas):
+
+Basis (middle band) = SMA(source, length)
+
+StdDev = standard deviation of last length values
+
+Upper = Basis + (StdDev multiplier × StdDev)
+
+Lower = Basis - (StdDev multiplier × StdDev)
+
+Offset = shift the three series by N bars
+
+The indicator should recompute instantly whenever data updates or when inputs are changed. The UI must include a Settings modal/panel with two tabs (Inputs & Style), and any changes should apply immediately without refreshing. The design should be clean, simple, dark-theme friendly, and TradingView-inspired (no pixel-perfect match required). A tooltip/crosshair must show Basis/Upper/Lower values on hover.
+
+📌 What page.tsx should contain
+
+The page.tsx file will be the main entry point of the app and should include:
+
+Rendering of the Chart component (candlestick + Bollinger Bands overlay).
+
+A button/menu to add the Bollinger Bands indicator.
+
+The Settings modal/panel (with Inputs and Style tabs) that allows the user to configure the indicator.
+
+State management to handle indicator settings and pass them to the chart.
+
+Integration of demo OHLCV data from /public/data/ohlcv.json.
+
+So page.tsx acts as the controller layer — it connects the UI (settings panel, button) with the chart rendering logic.
+
+📌 Deliverables
+
+A GitHub repository or ZIP containing:
+
+Full source code (Next.js + TypeScript)
+
+README.md with:
+
+Setup instructions (npm i && npm run dev)
+
+Explanation of formulas and chosen StdDev variant (population/sample)
+
+KLineCharts version used
+
+Screenshots or short GIF of the chart and settings
+
+(Optional) A hosted demo (Vercel/Netlify)
+
+📌 Acceptance Criteria
+
+Correctness: Bollinger Bands behave correctly (basis tracks MA, bands expand/contract with volatility, offset works).
+
+UI/UX: Settings panel works properly with toggles, color pickers, and opacity adjustments.
+
+Performance: Smooth interaction on datasets of 200–1000 candles without lag.
+
+Code Quality: Type-safe, modular, readable, and clean (e.g., utility computeBollingerBands() function).
+
+Strict use of KLineCharts only.
+
+📌 Suggested project structure:
+/ (Next.js app)
+  /app
+    page.tsx                 # main chart + add indicator button + settings modal
+  /components
+    Chart.tsx                # wraps KLineCharts init & updates
+    BollingerSettings.tsx    # inputs + style UI
+  /lib
+    indicators/
+      bollinger.ts           # computeBollingerBands()
+    types.ts                 # OHLCV & indicator types
+  /public/data/ohlcv.json    # demo OHLCV data
+  README.md
+
+📌 Submission
+
+Share GitHub repo or ZIP (plus hosted demo link if available).
+
+Add a short note on trade-offs/known issues.
+
+Deadline: Submit within 3 days of receiving the assignment.
+
+📌 Reference links
+
+KLineCharts: https://klinecharts.com/en-US/
+
+TradingView (UI reference): https://www.tradingview.com/chart
