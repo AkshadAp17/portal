@@ -131,7 +131,7 @@ export default function ChartPage() {
           
           if (validRows > 0) {
             setUploadedData(parsedData);
-            alert(`Successfully loaded ${validRows} data points from your CSV file!`);
+            // Don't show alert, let the useEffect handle the notification
           } else {
             alert('No valid OHLCV data found. Please ensure your CSV has numeric Open, High, Low, Close prices.');
           }
@@ -162,11 +162,18 @@ export default function ChartPage() {
       setPriceChange(change);
       setPriceChangePercent((change / previous.close) * 100);
       
-      // Show welcome notification on first load
-      if (!uploadedData) {
+      // Automatically show indicator when CSV is uploaded
+      if (uploadedData) {
+        setShowBollingerIndicator(true);
+        toast({
+          title: "CSV Data Loaded! 📊",
+          description: "Your data has been loaded successfully with Bollinger Bands indicator.",
+        });
+      } else {
+        // Show welcome notification on first load with demo data
         toast({
           title: "Welcome to FindScan! 📈",
-          description: "Demo data loaded with Bollinger Bands indicator. Upload your CSV file or explore the current chart.",
+          description: "Demo data loaded. Upload your CSV file or click 'Add Bollinger Bands' to start analyzing.",
         });
       }
     }
