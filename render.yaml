@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: findscan-app
+    runtime: node
+    plan: starter
+    buildCommand: npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+    autoDeploy: false
