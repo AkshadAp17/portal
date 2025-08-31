@@ -268,7 +268,7 @@ export default function ChartPage() {
               <Button 
                 onClick={() => document.getElementById('csv-upload')?.click()}
                 variant="outline"
-                className="hover-primary-light border-2 font-medium px-4 py-2 transition-all duration-200 hover:border-primary hover:shadow-sm"
+                className="border-2 font-medium px-4 py-2 transition-all duration-200 hover:border-primary hover:shadow-sm hover:bg-primary/5 hover:text-primary"
                 data-testid="button-upload-csv"
               >
                 <Upload className="h-4 w-4 mr-2" />
