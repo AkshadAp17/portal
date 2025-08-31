@@ -150,32 +150,37 @@ export default function ChartPage() {
   };
 
   useEffect(() => {
-    // Load demo data if no uploaded data
-    const data = uploadedData || (demoData as OHLCV[]);
-    setChartData(data);
-    
-    if (data.length > 0) {
-      const latest = data[data.length - 1];
-      const previous = data[data.length - 2];
-      setCurrentPrice(latest.close);
-      const change = latest.close - previous.close;
-      setPriceChange(change);
-      setPriceChangePercent((change / previous.close) * 100);
+    // Only load data and update price when CSV is uploaded
+    if (uploadedData) {
+      setChartData(uploadedData);
       
-      // Automatically show indicator when CSV is uploaded
-      if (uploadedData) {
+      if (uploadedData.length > 0) {
+        const latest = uploadedData[uploadedData.length - 1];
+        const previous = uploadedData[uploadedData.length - 2];
+        setCurrentPrice(latest.close);
+        const change = latest.close - previous.close;
+        setPriceChange(change);
+        setPriceChangePercent((change / previous.close) * 100);
+        
+        // Automatically show indicator when CSV is uploaded
         setShowBollingerIndicator(true);
         toast({
           title: "CSV Data Loaded! 📊",
           description: "Your data has been loaded successfully with Bollinger Bands indicator.",
         });
-      } else {
-        // Show welcome notification on first load with demo data
-        toast({
-          title: "Welcome to FindScan! 📈",
-          description: "Demo data loaded. Upload your CSV file or click 'Add Bollinger Bands' to start analyzing.",
-        });
       }
+    } else {
+      // Keep price at 0 when no data is uploaded
+      setChartData([]);
+      setCurrentPrice(0);
+      setPriceChange(0);
+      setPriceChangePercent(0);
+      
+      // Show welcome notification on first load
+      toast({
+        title: "Welcome to FindScan! 📈",
+        description: "Upload your CSV file to start analyzing with Bollinger Bands.",
+      });
     }
   }, [uploadedData, toast]);
 
