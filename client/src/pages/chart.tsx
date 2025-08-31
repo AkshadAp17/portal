@@ -36,14 +36,60 @@ export default function ChartPage() {
   });
 
   const [chartData, setChartData] = useState<OHLCV[]>([]);
+  const [uploadedData, setUploadedData] = useState<OHLCV[] | null>(null);
   const [bollingerData, setBollingerData] = useState<any[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number>(0);
   const [priceChange, setPriceChange] = useState<number>(0);
   const [priceChangePercent, setPriceChangePercent] = useState<number>(0);
 
+  // CSV file upload handler
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === 'text/csv') {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const csv = e.target?.result as string;
+        const lines = csv.split('\n');
+        const headers = lines[0].toLowerCase().split(',');
+        
+        const parsedData: OHLCV[] = [];
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(',');
+          if (values.length >= 6) {
+            try {
+              const row: OHLCV = {
+                timestamp: values[headers.indexOf('timestamp')] || values[headers.indexOf('date')] || values[0],
+                open: parseFloat(values[headers.indexOf('open')] || values[1]),
+                high: parseFloat(values[headers.indexOf('high')] || values[2]),
+                low: parseFloat(values[headers.indexOf('low')] || values[3]),
+                close: parseFloat(values[headers.indexOf('close')] || values[4]),
+                volume: parseFloat(values[headers.indexOf('volume')] || values[5])
+              };
+              if (!isNaN(row.open) && !isNaN(row.high) && !isNaN(row.low) && !isNaN(row.close)) {
+                parsedData.push(row);
+              }
+            } catch (error) {
+              console.warn('Skipping invalid row:', values);
+            }
+          }
+        }
+        
+        if (parsedData.length > 0) {
+          setUploadedData(parsedData);
+          setChartData(parsedData);
+        } else {
+          alert('No valid data found in CSV file. Please check the format.');
+        }
+      };
+      reader.readAsText(file);
+    } else {
+      alert('Please select a valid CSV file.');
+    }
+  };
+
   useEffect(() => {
-    // Load demo data
-    const data = demoData as OHLCV[];
+    // Load demo data if no uploaded data
+    const data = uploadedData || (demoData as OHLCV[]);
     setChartData(data);
     
     if (data.length > 0) {
@@ -54,7 +100,7 @@ export default function ChartPage() {
       setPriceChange(change);
       setPriceChangePercent((change / previous.close) * 100);
     }
-  }, []);
+  }, [uploadedData]);
 
   useEffect(() => {
     if (chartData.length > 0) {
@@ -73,14 +119,31 @@ export default function ChartPage() {
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-bold text-foreground" data-testid="text-app-title">FindScan</h1>
             <div className="text-sm text-muted-foreground">
-              <span className={`${priceChange >= 0 ? 'text-bullish' : 'text-bearish'}`} data-testid="text-symbol">BTCUSD</span>
-              <span className="ml-2" data-testid="text-current-price">${currentPrice.toFixed(2)}</span>
+              <span className={`${priceChange >= 0 ? 'text-bullish' : 'text-bearish'}`} data-testid="text-symbol">NIFTY50</span>
+              <span className="ml-2" data-testid="text-current-price">₹{currentPrice.toFixed(2)}</span>
               <span className={`ml-2 ${priceChange >= 0 ? 'text-bullish' : 'text-bearish'}`} data-testid="text-price-change">
                 {priceChange >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%
               </span>
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileUpload}
+              className="hidden"
+              id="csv-upload"
+              data-testid="input-csv-upload"
+            />
+            <Button 
+              onClick={() => document.getElementById('csv-upload')?.click()}
+              variant="outline"
+              className="mr-2"
+              data-testid="button-upload-csv"
+            >
+              <i className="fas fa-upload mr-2"></i>
+              Upload CSV
+            </Button>
             <Button 
               onClick={() => setShowSettings(true)}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -102,7 +165,7 @@ export default function ChartPage() {
         <Card className="chart-container rounded-lg p-4 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-4">
-              <h2 className="text-lg font-semibold" data-testid="text-chart-title">BTCUSD Chart</h2>
+              <h2 className="text-lg font-semibold" data-testid="text-chart-title">NIFTY50 Chart</h2>
               <Select value={timeframe} onValueChange={setTimeframe}>
                 <SelectTrigger className="w-20" data-testid="select-timeframe">
                   <SelectValue />
@@ -203,7 +266,7 @@ export default function ChartPage() {
                   style={{ color: bollingerSettings.upperColor }}
                   data-testid="text-upper-value"
                 >
-                  {currentBands ? `$${currentBands.upper.toFixed(2)}` : '-'}
+                  {currentBands ? `₹${currentBands.upper.toFixed(2)}` : '-'}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -213,7 +276,7 @@ export default function ChartPage() {
                   style={{ color: bollingerSettings.basicColor }}
                   data-testid="text-basis-value"
                 >
-                  {currentBands ? `$${currentBands.basis.toFixed(2)}` : '-'}
+                  {currentBands ? `₹${currentBands.basis.toFixed(2)}` : '-'}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -223,7 +286,7 @@ export default function ChartPage() {
                   style={{ color: bollingerSettings.lowerColor }}
                   data-testid="text-lower-value"
                 >
-                  {currentBands ? `$${currentBands.lower.toFixed(2)}` : '-'}
+                  {currentBands ? `₹${currentBands.lower.toFixed(2)}` : '-'}
                 </span>
               </div>
             </div>
