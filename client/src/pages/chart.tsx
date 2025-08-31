@@ -267,7 +267,7 @@ export default function ChartPage() {
               <Button 
                 onClick={() => document.getElementById('csv-upload')?.click()}
                 variant="outline"
-                className="hover:bg-primary/5"
+                className="hover-primary-light"
                 data-testid="button-upload-csv"
               >
                 <Upload className="h-4 w-4 mr-2" />
@@ -276,7 +276,7 @@ export default function ChartPage() {
               <Button 
                 onClick={downloadIndicatorData}
                 variant="outline"
-                className="hover:bg-green-50 hover:text-green-700 hover:border-green-200"
+                className="hover-green-light hover:text-green-700 hover:border-green-200"
                 data-testid="button-download-data"
               >
                 <Download className="h-4 w-4 mr-2" />
@@ -315,7 +315,7 @@ export default function ChartPage() {
                 variant="ghost" 
                 size="sm" 
                 onClick={() => setShowWelcomeAlert(false)}
-                className="h-auto p-1 hover:bg-primary/10"
+                className="h-auto p-1 hover-primary-light"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -357,7 +357,7 @@ export default function ChartPage() {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="h-8 px-2 hover:bg-primary/5"
+                  className="h-8 px-2 hover-primary-light"
                   onClick={() => setShowSettings(true)}
                   data-testid="button-open-settings"
                 >
@@ -366,7 +366,7 @@ export default function ChartPage() {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                  className="h-8 px-2 text-muted-foreground hover:text-destructive hover-destructive-light"
                   data-testid="button-remove-indicator"
                 >
                   <X className="h-3 w-3" />

@@ -200,3 +200,32 @@
 .bg-bollinger-fill {
   background-color: var(--bollinger-fill);
 }
+
+/* Fix hover background issues - prevent white backgrounds */
+.hover-primary-light:hover {
+  background-color: hsla(217, 91%, 60%, 0.05) !important;
+}
+
+.hover-green-light:hover {
+  background-color: hsla(142, 76%, 36%, 0.05) !important;
+}
+
+.hover-destructive-light:hover {
+  background-color: hsla(0, 84%, 60%, 0.05) !important;
+}
+
+/* Dark mode hover fixes */
+.dark .hover-green-light:hover {
+  background-color: hsla(142, 76%, 36%, 0.1) !important;
+}
+
+/* Override button default hover behavior */
+.hover-transparent:hover {
+  background-color: transparent !important;
+}
+
+/* Safe hover styles */
+.safe-hover:hover {
+  background-color: var(--muted) !important;
+  opacity: 0.8;
+}
