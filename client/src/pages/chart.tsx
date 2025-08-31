@@ -46,7 +46,7 @@ export default function ChartPage() {
   const [priceChange, setPriceChange] = useState<number>(0);
   const [priceChangePercent, setPriceChangePercent] = useState<number>(0);
   const [showWelcomeAlert, setShowWelcomeAlert] = useState(true);
-  const [showBollingerIndicator, setShowBollingerIndicator] = useState(true);
+  const [showBollingerIndicator, setShowBollingerIndicator] = useState(false);
   const { toast } = useToast();
 
   // CSV file upload handler
@@ -372,15 +372,6 @@ export default function ChartPage() {
               )}
               {showBollingerIndicator && (
                 <div className="flex items-center space-x-1">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-8 px-2 hover-primary-light transition-all duration-200"
-                    onClick={() => setShowSettings(true)}
-                    data-testid="button-open-settings"
-                  >
-                    <Settings className="h-3 w-3" />
-                  </Button>
                   <Button 
                     variant="outline" 
                     size="sm" 
