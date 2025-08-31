@@ -308,15 +308,6 @@ export default function ChartPage() {
                   Configure
                 </Button>
               )}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setShowSettings(true)}
-                className="hover-primary-light transition-all duration-200"
-                data-testid="button-settings"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
             </div>
           </div>
         </div>
