@@ -2,11 +2,15 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Chart from "@/components/Chart";
 import BollingerSettings from "@/components/BollingerSettings";
 import { BollingerBandsSettings, OHLCV } from "@/lib/types";
 import demoData from "@/data/demo-ohlcv.json";
 import { computeBollingerBands } from "@/lib/indicators/bollinger";
+import { useToast } from "@/hooks/use-toast";
+import { Download, TrendingUp, Settings, Upload, Plus, X, Bell } from "lucide-react";
 
 export default function ChartPage() {
   const [showSettings, setShowSettings] = useState(false);
@@ -41,6 +45,8 @@ export default function ChartPage() {
   const [currentPrice, setCurrentPrice] = useState<number>(0);
   const [priceChange, setPriceChange] = useState<number>(0);
   const [priceChangePercent, setPriceChangePercent] = useState<number>(0);
+  const [showWelcomeAlert, setShowWelcomeAlert] = useState(true);
+  const { toast } = useToast();
 
   // CSV file upload handler
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,8 +160,16 @@ export default function ChartPage() {
       const change = latest.close - previous.close;
       setPriceChange(change);
       setPriceChangePercent((change / previous.close) * 100);
+      
+      // Show welcome notification on first load
+      if (!uploadedData) {
+        toast({
+          title: "Welcome to FindScan! 📈",
+          description: "Demo data loaded with Bollinger Bands indicator. Upload your CSV file or explore the current chart.",
+        });
+      }
     }
-  }, [uploadedData]);
+  }, [uploadedData, toast]);
 
   useEffect(() => {
     if (chartData.length > 0) {
@@ -166,101 +180,203 @@ export default function ChartPage() {
 
   const currentBands = bollingerData.length > 0 ? bollingerData[bollingerData.length - 1] : null;
 
+  // Download indicator data function
+  const downloadIndicatorData = () => {
+    if (bollingerData.length === 0) {
+      toast({
+        title: "No Data Available",
+        description: "Please load chart data first to download indicator values.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const csvContent = [
+      ['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume', 'Upper Band', 'Basis', 'Lower Band'].join(','),
+      ...chartData.map((candle, index) => {
+        const bands = bollingerData[index] || { upper: '', basis: '', lower: '' };
+        return [
+          candle.timestamp,
+          candle.open,
+          candle.high,
+          candle.low,
+          candle.close,
+          candle.volume,
+          bands.upper ? bands.upper.toFixed(2) : '',
+          bands.basis ? bands.basis.toFixed(2) : '',
+          bands.lower ? bands.lower.toFixed(2) : ''
+        ].join(',');
+      })
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `bollinger_bands_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Download Complete! 📄",
+      description: "Bollinger Bands data exported successfully.",
+    });
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Header */}
-      <header className="bg-card border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold text-foreground" data-testid="text-app-title">FindScan</h1>
-            <div className="text-sm text-foreground">
-              <span className={`font-semibold ${priceChange >= 0 ? 'text-bullish' : 'text-bearish'}`} data-testid="text-symbol">NIFTY50</span>
-              <span className="ml-2 font-mono" data-testid="text-current-price">₹{currentPrice.toFixed(2)}</span>
-              <span className={`ml-2 font-semibold ${priceChange >= 0 ? 'text-bullish' : 'text-bearish'}`} data-testid="text-price-change">
-                {priceChange >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%
-              </span>
+      {/* Enhanced Header */}
+      <header className="bg-gradient-to-r from-card via-card to-muted/30 border-b border-border/60 shadow-sm">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-2">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-primary" />
+                </div>
+                <h1 className="text-2xl font-bold text-foreground" data-testid="text-app-title">
+                  FindScan
+                  <span className="text-sm font-normal text-muted-foreground ml-2">Pro</span>
+                </h1>
+              </div>
+              <div className="flex items-center space-x-4">
+                <Badge variant="outline" className="bg-background/50">
+                  <span className={`font-semibold ${priceChange >= 0 ? 'text-green-600' : 'text-red-600'}`} data-testid="text-symbol">NIFTY50</span>
+                </Badge>
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg font-mono text-foreground" data-testid="text-current-price">₹{currentPrice.toFixed(2)}</span>
+                  <Badge variant={priceChange >= 0 ? "default" : "destructive"} className={priceChange >= 0 ? 'bg-green-100 text-green-800' : ''}>
+                    <span data-testid="text-price-change">
+                      {priceChange >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%
+                    </span>
+                  </Badge>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleFileUpload}
-              className="hidden"
-              id="csv-upload"
-              data-testid="input-csv-upload"
-            />
-            <Button 
-              onClick={() => document.getElementById('csv-upload')?.click()}
-              variant="outline"
-              className="mr-2"
-              data-testid="button-upload-csv"
-            >
-              <i className="fas fa-upload mr-2"></i>
-              Upload CSV
-            </Button>
-            <Button 
-              onClick={() => setShowSettings(true)}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-              data-testid="button-add-indicator"
-            >
-              <i className="fas fa-plus mr-2"></i>
-              Add Indicator
-            </Button>
-            <Button variant="secondary" size="sm" data-testid="button-settings">
-              <i className="fas fa-cog"></i>
-            </Button>
+            <div className="flex items-center space-x-2">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="csv-upload"
+                data-testid="input-csv-upload"
+              />
+              <Button 
+                onClick={() => document.getElementById('csv-upload')?.click()}
+                variant="outline"
+                className="hover:bg-primary/5"
+                data-testid="button-upload-csv"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload CSV
+              </Button>
+              <Button 
+                onClick={downloadIndicatorData}
+                variant="outline"
+                className="hover:bg-green-50 hover:text-green-700 hover:border-green-200"
+                data-testid="button-download-data"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+              <Button 
+                onClick={() => setShowSettings(true)}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+                data-testid="button-add-indicator"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Indicator
+              </Button>
+              <Button variant="ghost" size="sm" data-testid="button-settings">
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 p-6">
-        {/* Chart Section */}
-        <Card className="chart-container rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-4">
-              <h2 className="text-lg font-semibold" data-testid="text-chart-title">NIFTY50 Chart</h2>
-              <Select value={timeframe} onValueChange={setTimeframe}>
-                <SelectTrigger className="w-20" data-testid="select-timeframe">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1D">1D</SelectItem>
-                  <SelectItem value="4H">4H</SelectItem>
-                  <SelectItem value="1H">1H</SelectItem>
-                  <SelectItem value="15m">15m</SelectItem>
-                  <SelectItem value="5m">5m</SelectItem>
-                  <SelectItem value="1m">1m</SelectItem>
-                </SelectContent>
-              </Select>
+      <main className="flex-1 p-6 bg-gradient-to-br from-background via-background to-muted/20">
+        {/* Welcome Alert */}
+        {showWelcomeAlert && (
+          <Alert className="mb-6 border-primary/20 bg-primary/5">
+            <Bell className="h-4 w-4 text-primary" />
+            <AlertDescription className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-foreground">
+                  📈 <strong>Live Bollinger Bands Analysis</strong> - Monitor real-time price movements with advanced technical indicators. 
+                  Upload your data or explore the demo chart below.
+                </span>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowWelcomeAlert(false)}
+                className="h-auto p-1 hover:bg-primary/10"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {/* Enhanced Chart Section */}
+        <Card className="chart-container rounded-xl p-6 mb-6 shadow-sm border-border/50">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-6">
+              <div>
+                <h2 className="text-xl font-semibold text-foreground" data-testid="text-chart-title">NIFTY50 Analysis</h2>
+                <p className="text-sm text-muted-foreground mt-1">Real-time technical analysis with Bollinger Bands</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-muted-foreground">Timeframe:</span>
+                <Select value={timeframe} onValueChange={setTimeframe}>
+                  <SelectTrigger className="w-24 h-9" data-testid="select-timeframe">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1D">1D</SelectItem>
+                    <SelectItem value="4H">4H</SelectItem>
+                    <SelectItem value="1H">1H</SelectItem>
+                    <SelectItem value="15m">15m</SelectItem>
+                    <SelectItem value="5m">5m</SelectItem>
+                    <SelectItem value="1m">1m</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-2 bg-secondary/50 rounded px-3 py-1 border border-border">
-                <span className="text-xs text-foreground font-medium" data-testid="text-indicator-name">Bollinger Bands</span>
+            <div className="flex items-center space-x-3">
+              <Badge variant="secondary" className="px-3 py-1 bg-primary/10 border-primary/20">
+                <TrendingUp className="h-3 w-3 mr-1" />
+                <span className="text-xs font-medium" data-testid="text-indicator-name">Bollinger Bands Active</span>
+              </Badge>
+              <div className="flex items-center space-x-1">
                 <Button 
-                  variant="ghost" 
+                  variant="outline" 
                   size="sm" 
-                  className="h-auto p-0 text-xs text-primary hover:text-primary/80"
+                  className="h-8 px-2 hover:bg-primary/5"
                   onClick={() => setShowSettings(true)}
                   data-testid="button-open-settings"
                 >
-                  <i className="fas fa-cog"></i>
+                  <Settings className="h-3 w-3" />
                 </Button>
                 <Button 
-                  variant="ghost" 
+                  variant="outline" 
                   size="sm" 
-                  className="h-auto p-0 text-xs text-foreground hover:text-destructive"
+                  className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
                   data-testid="button-remove-indicator"
                 >
-                  <i className="fas fa-times"></i>
+                  <X className="h-3 w-3" />
                 </Button>
               </div>
             </div>
           </div>
           
-          {/* Chart Component */}
-          <div className="relative h-96 bg-background border border-border rounded-md" data-testid="container-chart">
+          {/* Enhanced Chart Component */}
+          <div className="relative h-[500px] bg-background border border-border/30 rounded-lg overflow-hidden shadow-inner" data-testid="container-chart">
             <Chart 
               data={chartData}
               bollingerData={bollingerData}
@@ -269,76 +385,85 @@ export default function ChartPage() {
           </div>
         </Card>
 
-        {/* Info Panels */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="p-4 bg-card">
-            <h3 className="text-sm font-medium text-foreground mb-2" data-testid="text-settings-title">Current Settings</h3>
-            <div className="space-y-1 text-sm text-foreground">
-              <div className="flex justify-between">
-                <span>Length:</span>
-                <span data-testid="text-setting-length">{bollingerSettings.length}</span>
+        {/* Enhanced Info Panels */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-border/50 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-foreground" data-testid="text-settings-title">Indicator Settings</h3>
+              <Settings className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center p-2 bg-background/50 rounded">
+                <span className="text-muted-foreground">Length:</span>
+                <Badge variant="outline" data-testid="text-setting-length">{bollingerSettings.length}</Badge>
               </div>
-              <div className="flex justify-between">
-                <span>Source:</span>
-                <span data-testid="text-setting-source">{bollingerSettings.source}</span>
+              <div className="flex justify-between items-center p-2 bg-background/50 rounded">
+                <span className="text-muted-foreground">Source:</span>
+                <Badge variant="outline" data-testid="text-setting-source">{bollingerSettings.source.toUpperCase()}</Badge>
               </div>
-              <div className="flex justify-between">
-                <span>StdDev:</span>
-                <span data-testid="text-setting-stddev">{bollingerSettings.stddev}</span>
+              <div className="flex justify-between items-center p-2 bg-background/50 rounded">
+                <span className="text-muted-foreground">StdDev:</span>
+                <Badge variant="outline" data-testid="text-setting-stddev">{bollingerSettings.stddev}</Badge>
               </div>
-              <div className="flex justify-between">
-                <span>Offset:</span>
-                <span data-testid="text-setting-offset">{bollingerSettings.offset}</span>
+              <div className="flex justify-between items-center p-2 bg-background/50 rounded">
+                <span className="text-muted-foreground">Offset:</span>
+                <Badge variant="outline" data-testid="text-setting-offset">{bollingerSettings.offset}</Badge>
               </div>
             </div>
           </Card>
           
-          <Card className="p-4 bg-card">
-            <h3 className="text-sm font-medium text-foreground mb-2" data-testid="text-performance-title">Performance</h3>
-            <div className="space-y-1 text-sm text-foreground">
-              <div className="flex justify-between">
-                <span>Candles:</span>
-                <span data-testid="text-candle-count">{chartData.length}</span>
+          <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-border/50 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-foreground" data-testid="text-performance-title">Chart Info</h3>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center p-2 bg-background/50 rounded">
+                <span className="text-muted-foreground">Data Points:</span>
+                <Badge variant="secondary" data-testid="text-candle-count">{chartData.length.toLocaleString()}</Badge>
               </div>
-              <div className="flex justify-between">
-                <span>Timeframe:</span>
-                <span data-testid="text-timeframe">{timeframe}</span>
+              <div className="flex justify-between items-center p-2 bg-background/50 rounded">
+                <span className="text-muted-foreground">Timeframe:</span>
+                <Badge variant="secondary" data-testid="text-timeframe">{timeframe}</Badge>
               </div>
-              <div className="flex justify-between">
-                <span>Update Time:</span>
-                <span data-testid="text-update-time">~2ms</span>
+              <div className="flex justify-between items-center p-2 bg-background/50 rounded">
+                <span className="text-muted-foreground">Render Time:</span>
+                <Badge variant="secondary" className="text-green-600" data-testid="text-update-time">~2ms</Badge>
               </div>
             </div>
           </Card>
           
-          <Card className="p-4 bg-card">
-            <h3 className="text-sm font-medium text-foreground mb-2" data-testid="text-band-values-title">Band Values</h3>
-            <div className="space-y-1 text-sm text-foreground">
-              <div className="flex justify-between items-center">
-                <span>Upper:</span>
+          <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-border/50 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-foreground" data-testid="text-band-values-title">Current Values</h3>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center p-2 bg-background/50 rounded">
+                <span className="text-muted-foreground">Upper Band:</span>
                 <span 
-                  className="text-xs font-mono" 
-                  style={{ color: bollingerSettings.upperColor }}
+                  className="font-mono font-semibold px-2 py-1 rounded text-xs" 
+                  style={{ color: bollingerSettings.upperColor, backgroundColor: `${bollingerSettings.upperColor}15` }}
                   data-testid="text-upper-value"
                 >
                   {currentBands ? `₹${currentBands.upper.toFixed(2)}` : '-'}
                 </span>
               </div>
-              <div className="flex justify-between items-center">
-                <span>Basis:</span>
+              <div className="flex justify-between items-center p-2 bg-background/50 rounded">
+                <span className="text-muted-foreground">Basis Line:</span>
                 <span 
-                  className="text-xs font-mono" 
-                  style={{ color: bollingerSettings.basicColor }}
+                  className="font-mono font-semibold px-2 py-1 rounded text-xs" 
+                  style={{ color: bollingerSettings.basicColor, backgroundColor: `${bollingerSettings.basicColor}15` }}
                   data-testid="text-basis-value"
                 >
                   {currentBands ? `₹${currentBands.basis.toFixed(2)}` : '-'}
                 </span>
               </div>
-              <div className="flex justify-between items-center">
-                <span>Lower:</span>
+              <div className="flex justify-between items-center p-2 bg-background/50 rounded">
+                <span className="text-muted-foreground">Lower Band:</span>
                 <span 
-                  className="text-xs font-mono" 
-                  style={{ color: bollingerSettings.lowerColor }}
+                  className="font-mono font-semibold px-2 py-1 rounded text-xs" 
+                  style={{ color: bollingerSettings.lowerColor, backgroundColor: `${bollingerSettings.lowerColor}15` }}
                   data-testid="text-lower-value"
                 >
                   {currentBands ? `₹${currentBands.lower.toFixed(2)}` : '-'}
