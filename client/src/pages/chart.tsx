@@ -45,46 +45,101 @@ export default function ChartPage() {
   // CSV file upload handler
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type === 'text/csv') {
+    if (file && (file.type === 'text/csv' || file.name.endsWith('.csv'))) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        const csv = e.target?.result as string;
-        const lines = csv.split('\n');
-        const headers = lines[0].toLowerCase().split(',');
-        
-        const parsedData: OHLCV[] = [];
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(',');
-          if (values.length >= 6) {
-            try {
-              const row: OHLCV = {
-                timestamp: values[headers.indexOf('timestamp')] || values[headers.indexOf('date')] || values[0],
-                open: parseFloat(values[headers.indexOf('open')] || values[1]),
-                high: parseFloat(values[headers.indexOf('high')] || values[2]),
-                low: parseFloat(values[headers.indexOf('low')] || values[3]),
-                close: parseFloat(values[headers.indexOf('close')] || values[4]),
-                volume: parseFloat(values[headers.indexOf('volume')] || values[5])
-              };
-              if (!isNaN(row.open) && !isNaN(row.high) && !isNaN(row.low) && !isNaN(row.close)) {
-                parsedData.push(row);
+        try {
+          const csv = e.target?.result as string;
+          const lines = csv.split('\n').filter(line => line.trim().length > 0);
+          
+          if (lines.length < 2) {
+            alert('CSV file must contain at least a header row and one data row.');
+            return;
+          }
+          
+          const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
+          
+          // Check if this looks like OHLCV data
+          const hasOHLCV = ['open', 'high', 'low', 'close', 'volume'].some(field => 
+            headers.some(h => h.includes(field))
+          );
+          
+          if (!hasOHLCV) {
+            alert(`This CSV format is not supported. Please use OHLCV format with columns:\n\n- timestamp/date\n- open\n- high\n- low\n- close\n- volume\n\nYour file has columns: ${headers.join(', ')}`);
+            return;
+          }
+          
+          // Find column indices
+          const getColumnIndex = (possibleNames: string[]) => {
+            for (const name of possibleNames) {
+              const index = headers.findIndex(h => h.includes(name));
+              if (index !== -1) return index;
+            }
+            return -1;
+          };
+          
+          const timestampIndex = getColumnIndex(['timestamp', 'date', 'time']);
+          const openIndex = getColumnIndex(['open']);
+          const highIndex = getColumnIndex(['high']);
+          const lowIndex = getColumnIndex(['low']);
+          const closeIndex = getColumnIndex(['close']);
+          const volumeIndex = getColumnIndex(['volume', 'vol']);
+          
+          if (openIndex === -1 || highIndex === -1 || lowIndex === -1 || closeIndex === -1) {
+            alert('CSV must contain Open, High, Low, and Close price columns.');
+            return;
+          }
+          
+          const parsedData: OHLCV[] = [];
+          let validRows = 0;
+          
+          for (let i = 1; i < lines.length && i <= 1001; i++) { // Limit to 1000 rows + header
+            const values = lines[i].split(',').map(v => v.trim());
+            
+            if (values.length >= Math.max(openIndex, highIndex, lowIndex, closeIndex) + 1) {
+              try {
+                const timestamp = timestampIndex >= 0 ? values[timestampIndex] : `2024-01-${String(i).padStart(2, '0')}T00:00:00Z`;
+                const open = parseFloat(values[openIndex]);
+                const high = parseFloat(values[highIndex]);
+                const low = parseFloat(values[lowIndex]);
+                const close = parseFloat(values[closeIndex]);
+                const volume = volumeIndex >= 0 ? parseFloat(values[volumeIndex]) : 1000000;
+                
+                if (!isNaN(open) && !isNaN(high) && !isNaN(low) && !isNaN(close) && open > 0 && high > 0 && low > 0 && close > 0) {
+                  parsedData.push({
+                    timestamp,
+                    open,
+                    high,
+                    low,
+                    close,
+                    volume: isNaN(volume) ? 1000000 : volume
+                  });
+                  validRows++;
+                }
+              } catch (error) {
+                console.warn('Skipping invalid row:', values);
               }
-            } catch (error) {
-              console.warn('Skipping invalid row:', values);
             }
           }
-        }
-        
-        if (parsedData.length > 0) {
-          setUploadedData(parsedData);
-          setChartData(parsedData);
-        } else {
-          alert('No valid data found in CSV file. Please check the format.');
+          
+          if (validRows > 0) {
+            setUploadedData(parsedData);
+            alert(`Successfully loaded ${validRows} data points from your CSV file!`);
+          } else {
+            alert('No valid OHLCV data found. Please ensure your CSV has numeric Open, High, Low, Close prices.');
+          }
+        } catch (error) {
+          alert('Error reading CSV file. Please check the file format and try again.');
+          console.error('CSV parsing error:', error);
         }
       };
       reader.readAsText(file);
     } else {
-      alert('Please select a valid CSV file.');
+      alert('Please select a valid CSV file (.csv extension required).');
     }
+    
+    // Clear the input so the same file can be uploaded again
+    event.target.value = '';
   };
 
   useEffect(() => {
@@ -118,10 +173,10 @@ export default function ChartPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-bold text-foreground" data-testid="text-app-title">FindScan</h1>
-            <div className="text-sm text-muted-foreground">
-              <span className={`${priceChange >= 0 ? 'text-bullish' : 'text-bearish'}`} data-testid="text-symbol">NIFTY50</span>
-              <span className="ml-2" data-testid="text-current-price">₹{currentPrice.toFixed(2)}</span>
-              <span className={`ml-2 ${priceChange >= 0 ? 'text-bullish' : 'text-bearish'}`} data-testid="text-price-change">
+            <div className="text-sm text-foreground">
+              <span className={`font-semibold ${priceChange >= 0 ? 'text-bullish' : 'text-bearish'}`} data-testid="text-symbol">NIFTY50</span>
+              <span className="ml-2 font-mono" data-testid="text-current-price">₹{currentPrice.toFixed(2)}</span>
+              <span className={`ml-2 font-semibold ${priceChange >= 0 ? 'text-bullish' : 'text-bearish'}`} data-testid="text-price-change">
                 {priceChange >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%
               </span>
             </div>
@@ -181,8 +236,8 @@ export default function ChartPage() {
               </Select>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-2 bg-secondary rounded px-3 py-1">
-                <span className="text-xs text-muted-foreground" data-testid="text-indicator-name">Bollinger Bands</span>
+              <div className="flex items-center space-x-2 bg-secondary/50 rounded px-3 py-1 border border-border">
+                <span className="text-xs text-foreground font-medium" data-testid="text-indicator-name">Bollinger Bands</span>
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -195,7 +250,7 @@ export default function ChartPage() {
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="h-auto p-0 text-xs text-muted-foreground hover:text-destructive"
+                  className="h-auto p-0 text-xs text-foreground hover:text-destructive"
                   data-testid="button-remove-indicator"
                 >
                   <i className="fas fa-times"></i>
@@ -216,9 +271,9 @@ export default function ChartPage() {
 
         {/* Info Panels */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="p-4">
-            <h3 className="text-sm font-medium text-muted-foreground mb-2" data-testid="text-settings-title">Current Settings</h3>
-            <div className="space-y-1 text-sm">
+          <Card className="p-4 bg-card">
+            <h3 className="text-sm font-medium text-foreground mb-2" data-testid="text-settings-title">Current Settings</h3>
+            <div className="space-y-1 text-sm text-foreground">
               <div className="flex justify-between">
                 <span>Length:</span>
                 <span data-testid="text-setting-length">{bollingerSettings.length}</span>
@@ -238,9 +293,9 @@ export default function ChartPage() {
             </div>
           </Card>
           
-          <Card className="p-4">
-            <h3 className="text-sm font-medium text-muted-foreground mb-2" data-testid="text-performance-title">Performance</h3>
-            <div className="space-y-1 text-sm">
+          <Card className="p-4 bg-card">
+            <h3 className="text-sm font-medium text-foreground mb-2" data-testid="text-performance-title">Performance</h3>
+            <div className="space-y-1 text-sm text-foreground">
               <div className="flex justify-between">
                 <span>Candles:</span>
                 <span data-testid="text-candle-count">{chartData.length}</span>
@@ -256,9 +311,9 @@ export default function ChartPage() {
             </div>
           </Card>
           
-          <Card className="p-4">
-            <h3 className="text-sm font-medium text-muted-foreground mb-2" data-testid="text-band-values-title">Band Values</h3>
-            <div className="space-y-1 text-sm">
+          <Card className="p-4 bg-card">
+            <h3 className="text-sm font-medium text-foreground mb-2" data-testid="text-band-values-title">Band Values</h3>
+            <div className="space-y-1 text-sm text-foreground">
               <div className="flex justify-between items-center">
                 <span>Upper:</span>
                 <span 
